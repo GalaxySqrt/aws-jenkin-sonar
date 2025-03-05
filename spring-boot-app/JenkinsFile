@@ -21,7 +21,7 @@ pipeline {
     }
     stage('Static Code Analysis') {
       environment {
-        SONAR_URL = "http://18.222.116.152:9000/"
+        SONAR_URL = "http://18.227.134.109:9000/"
       }
       steps {
         withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
@@ -31,17 +31,22 @@ pipeline {
     }
     stage('Build and Push Docker Image') {
       environment {
-        DOCKER_IMAGE = "sunitabachhav2007/ultimate-cicd:${BUILD_NUMBER}"
-        // DOCKERFILE_LOCATION = "java-maven-sonar-argocd-helm-k8s/spring-boot-app/Dockerfile"
-        REGISTRY_CREDENTIALS = credentials('docker-cred')
+        DOCKER_IMAGE = "marlonceub/ultimate-cicd:${BUILD_NUMBER}"
       }
       steps {
         script {
-            sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} .'
+          sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} .'
+
+          // Recupera o token do Jenkins Credentials
+          withCredentials([string(credentialsId: 'docker', variable: 'DOCKER_TOKEN')]) {
+            sh 'echo "$DOCKER_TOKEN" | docker login -u "galaxysqrt" --password-stdin'
+
             def dockerImage = docker.image("${DOCKER_IMAGE}")
-            docker.withRegistry('https://index.docker.io/v1/', "55acfac8-3a35-4fad-b3a5-6588f8692de7") {
-                dockerImage.push()
-            }
+            dockerImage.push()
+
+            // Faz logout para evitar exposição do token no ambiente
+            sh 'docker logout'
+          }
         }
       }
     }
